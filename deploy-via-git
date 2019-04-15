@@ -24,11 +24,20 @@ log_it()
 trap_err()
 {
     LAST_LINE="$1"
-    LAST_ERR="$2"
 
-    log_it "error" "line: $LAST_LINE. error: $LAST_ERR. stderr:"
-    log_it "error" "$(cat "$ERROR_FILE")"
-    log_it "error" "exit."
+    log_it "error" "line: $LAST_LINE."
+
+    exit "$LAST_ERR"
+}
+
+trap_exit()
+{
+    LAST_ERR="$1"
+
+    if [ "$LAST_ERR" != 0 ]; then
+        log_it "error" "$(cat "$ERROR_FILE")"
+        log_it "error" "exit code: $LAST_ERR."
+    fi
 
     exit "$LAST_ERR"
 }
@@ -102,20 +111,14 @@ test_deploy()
     mkdir -p "$TMP_REPO_DIR"
     cp -nrf --parents "${REPO_DIR}" "$TMP_REPO_DIR"
 
-    cd "${TMP_REPO_DIR}/${REPO_DIR}"
-
-    if ! try_git_pull; then
-        log_it "error" "at test_deploy, try_git_pull with errors. See the logs."
-
-        exit 1
-    fi
+    deploy "${TMP_REPO_DIR}/${REPO_DIR}"
 
     log_it "info" "'--test' duplicated your repo at $TMP_REPO_DIR."
 }
 
 deploy()
 {
-    cd "$REPO_DIR"
+    cd "$1"
 
     if ! try_git_pull; then
         log_it "error" "try_git_pull with errors. See the logs."
@@ -193,8 +196,10 @@ if ! test -d "$TMP_SCRIPT_DIR"; then
 fi
 
 exec 2>"$ERROR_FILE"
-trap 'trap_err $LINENO $?' ERR 
+trap 'trap_err $LINENO' ERR 
+trap 'trap_exit $?' EXIT
 set -o errtrace
+#set -o exittrace
 
 get_params "$@"
 
@@ -212,7 +217,7 @@ if [ "$(whoami)" == ${CI_USER:?} ]; then
         if [ "${TEST:-0}" == 1 ]; then
             test_deploy
         else
-            deploy
+            deploy "$REPO_DIR"
         fi
         
     else
