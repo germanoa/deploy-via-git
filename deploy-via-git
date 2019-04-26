@@ -5,8 +5,8 @@ NOW=$(date "+%Y-%m-%d-%k%M%S")
 SCRIPT_FILE=${0##*/}
 SCRIPT_NAME=${SCRIPT_FILE/\.sh/}
 SCRIPT_DIR=${0%/$SCRIPT_FILE}
-CONFIG_FILE="${SCRIPT_DIR}/${SCRIPT_NAME}.conf"
 TMP_SCRIPT_DIR="/tmp/${SCRIPT_NAME}.tmp"
+CONFIG_FILE="${SCRIPT_DIR}/${SCRIPT_NAME}.conf"
 CLEAN_CONFIG_FILE="${TMP_SCRIPT_DIR}/${SCRIPT_NAME}.conf.clean"
 OUT_FILE="${TMP_SCRIPT_DIR}/${SCRIPT_NAME}.stdout"
 ERROR_FILE="${TMP_SCRIPT_DIR}/${SCRIPT_NAME}.stderr"
@@ -24,6 +24,7 @@ log_it()
 trap_err()
 {
     LAST_LINE="$1"
+    LAST_ERR="$2"
 
     log_it "error" "line: $LAST_LINE."
 
@@ -38,8 +39,6 @@ trap_exit()
         log_it "error" "$(cat "$ERROR_FILE")"
         log_it "error" "exit code: $LAST_ERR."
     fi
-
-    exit "$LAST_ERR"
 }
 
 read_config()
@@ -187,6 +186,8 @@ get_params()
 
 
 # 3. main
+cd ~
+
 if ! [[ $TMP_SCRIPT_DIR =~ ^/tmp/ ]]; then
     log_it "warn" "you set TMP_SCRIPT_DIR out of /tmp/."
 fi
@@ -196,10 +197,9 @@ if ! test -d "$TMP_SCRIPT_DIR"; then
 fi
 
 exec 2>"$ERROR_FILE"
-trap 'trap_err $LINENO' ERR 
+trap 'trap_err $LINENO $?' ERR 
 trap 'trap_exit $?' EXIT
 set -o errtrace
-#set -o exittrace
 
 get_params "$@"
 
